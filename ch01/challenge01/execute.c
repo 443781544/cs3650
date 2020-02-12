@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+
 
 #include "svec.h"
 #include "execute.h"
@@ -29,7 +31,7 @@ int contains(svec* sv, const char* string) {
 
 }
 
-void
+int
 execute(svec* tokens)
 {
 
@@ -43,7 +45,7 @@ execute(svec* tokens)
     	executePipe(tokens);
     }
     else if(contains(tokens, ops[2])) {
-    	executeBackground(tokens);
+    	executeBackground(tokens, contains(tokens, ops[2]));
     
     }
     else if(contains(tokens, ops[3])) {
@@ -55,7 +57,7 @@ execute(svec* tokens)
     
     }
     else if(contains(tokens, ops[5])) {
-    	executeRedirectIn(tokens);
+    	executeRedirectIn(tokens, contains(tokens, ops[5]));
     
     }
     else if(contains(tokens, ops[6])) {
@@ -64,7 +66,7 @@ execute(svec* tokens)
     }
     else {
     	if(tokens->size == 0) {
-       		return;
+       		return 0;
         }
         	
         if(strcmp(svec_get(tokens, 0), "cd") == 0) {
@@ -91,7 +93,7 @@ execute(svec* tokens)
 
 }
 
-void
+int
 executeSemicolon(svec* tokens, int index) {
 	svec* left = make_svec();
 	svec* right = make_svec();
@@ -109,104 +111,125 @@ executeSemicolon(svec* tokens, int index) {
 	free_svec(right);
 }
 
-void
+int
 executePipe(svec* tokens) {
 	
 }
 
-void executeBackground(svec* tokens){
+int executeBackground(svec* tokens, int index){
 	int cpid;
 	if ((cpid = fork())) {
+		svec* cmd = make_svec();
+		
+		for(int i = index + 1; i < tokens->size; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		execute(cmd);
+		free_svec(cmd);
 
 	} else {
-		char* args[tokens->size];
-		for (int ii = 0; ii < tokens->size - 1; ++ii) {
-			args[ii] = svec_get(tokens, ii);
-		}
-		args[tokens->size - 1] = 0;
 
-		execvp(svec_get(tokens, 0), args);
+		svec* cmd = make_svec();
 		
-		/*
-		//remove &
-		tokens->size -= 1;
-		execute(tokens);
-		*/
-	}
-}
-
-void executeOr(svec* tokens, int index){
-	int cpid;
-	if ((cpid = fork())) {
-		int status;
-		waitpid(cpid, &status, 0);
-		if (status != 0) {
-			svec* cmd = make_svec();
-		
-			for(int i = index + 1; i < tokens->size; ++i) {
-				svec_push_back(cmd, svec_get(tokens, i));
-			}
-			execute(cmd);
-			free_svec(cmd);
-			
-		}
-	} else {
-		char* args[index + 1];
-		for (int ii = 0; ii < index; ++ii) {
-			args[ii] = svec_get(tokens, ii);
-		}
-		args[index] = 0;
-
-		execvp(svec_get(tokens, 0), args);
-		
-		/*
-			svec* cmd = make_svec();
-	
 		for(int i = 0; i < index; ++i) {
 			svec_push_back(cmd, svec_get(tokens, i));
 		}
 		execute(cmd);
 		free_svec(cmd);
-		*/
 	}
 }
 
-void executeAnd(svec* tokens, int index){
+int executeOr(svec* tokens, int index){
+	svec* cmd = make_svec();
+
+	for(int i = 0; i < index; ++i) {
+		svec_push_back(cmd, svec_get(tokens, i));
+	}
+	int status = execute(cmd);
+	free_svec(cmd);
+
+	if (status != 0) {
+		svec* cmd = make_svec();
+	
+		for(int i = index + 1; i < tokens->size; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		execute(cmd);
+		free_svec(cmd);
+		
+	}
+
+}
+
+int executeAnd(svec* tokens, int index){
+	svec* cmd = make_svec();
+
+	for(int i = 0; i < index; ++i) {
+		svec_push_back(cmd, svec_get(tokens, i));
+	}
+	int status = execute(cmd);
+	free_svec(cmd);
+
+	if (status == 0) {
+		svec* cmd = make_svec();
+	
+		for(int i = index + 1; i < tokens->size; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		execute(cmd);
+		free_svec(cmd);
+		
+	}
+}
+
+int executeRedirectIn(svec* tokens, int index){
+
 	int cpid;
 	if ((cpid = fork())) {
-		int status;
-		waitpid(cpid, &status, 0);
-		if (status == 0) {
-			svec* cmd = make_svec();
-		
-			for(int i = index + 1; i < tokens->size; ++i) {
-				svec_push_back(cmd, svec_get(tokens, i));
-			}
-			execute(cmd);
-			free_svec(cmd);
-			
-		}
-	} else {
-	
-		char* args[index + 1];
-		for (int ii = 0; ii < index; ++ii) {
-			args[ii] = svec_get(tokens, ii);
-		}
-		args[index] = 0;
-
-		execvp(svec_get(tokens, 0), args);
+		waitpid(cpid, 0, 0);
 	}
+	else {
+		int stdinCopy = dup(0);
+		svec* cmd = make_svec();
+	
+		for(int i = 0; i < index; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		char* file = svec_get(tokens, index + 1);
+
+		close(0);
+		open(file, O_RDONLY);
+
+		execute(cmd);
+		free_svec(cmd);
+		dup2(stdinCopy, 0); 
+
+	}
+
+
 }
 
-void executeRedirectIn(svec* tokens){
+int executeRedirectOut(svec* tokens){
+/*
+ 	int cpid;
+	if ((cpid = fork())) {
+		waitpid(cpid, 0, 0);
+		printf("%d: Child done.\n", getpid());
+	}
+	else {
+		int fd = open("foo.txt", O_CREAT | O_APPEND | O_WRONLY, 0644);
+		close(1);
+		dup(fd);
+		close(fd);
 
+		execlp("echo", "echo", "exec'd", "echo", NULL);
+
+	}
+	return 0;
+*/
 }
 
-void executeRedirectOut(svec* tokens){
-
-}
-
-void
+int
 executecmd(svec* tokens) 
 {
 	int cpid;
@@ -214,6 +237,7 @@ executecmd(svec* tokens)
 	
 		int status;
 		waitpid(cpid, &status, 0);
+		return status;
 		
 	} else {
 		char* args[tokens->size + 1];

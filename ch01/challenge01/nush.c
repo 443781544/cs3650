@@ -17,13 +17,14 @@ main(int argc, char* argv[])
 
 
     if (argc == 1) {
-        while(1){
-		printf("nush$ ");
+	printf("nush$ ");
+        while(fgets(cmd, 256, stdin) != 0) {
 		fflush(stdout);
-		fgets(cmd, 256, stdin);
+
 		svec* tokens = tokenize(cmd);
     		execute(tokens);
     		free_svec(tokens);
+		printf("nush$ ");
 
 	}
     }
@@ -31,7 +32,7 @@ main(int argc, char* argv[])
         FILE* pFile;
 	pFile = fopen(argv[1], "r");
 	if (pFile != NULL) {
-		while(fgets(cmd, 256, pFile) != NULL) {
+		while(fgets(cmd, 256, pFile) != 0) {
 			fflush(stdout);
 			svec* tokens = tokenize(cmd);
 			execute(tokens);
@@ -45,49 +46,3 @@ main(int argc, char* argv[])
     return 0;
 }
 
-
-
-
-
-
-/*
-
-    if ((cpid = fork())) {
-        // parent process
-        printf("Parent pid: %d\n", getpid());
-        printf("Parent knows child pid: %d\n", cpid);
-
-        // Child may still be running until we wait.
-
-        int status;
-        waitpid(cpid, &status, 0);
-
-        printf("== executed program complete ==\n");
-
-        printf("child returned with wait code %d\n", status);
-        if (WIFEXITED(status)) {
-            printf("child exited with exit code (or main returned) %d\n", WEXITSTATUS(status));
-        }
-    }
-    else {
-        // child process
-        printf("Child pid: %d\n", getpid());
-        printf("Child knows parent pid: %d\n", getppid());
-
-        for (int ii = 0; ii < strlen(cmd); ++ii) {
-            if (cmd[ii] == ' ') {
-                cmd[ii] = 0;
-                break;
-            }
-        }
-
-        // The argv array for the child.
-        // Terminated by a null pointer.
-        char* args[] = {cmd, 0};
-
-        printf("== executed program's output: ==\n");
-
-        execvp(cmd, args);
-        printf("Can't get here, exec only returns on error.");
-    }
-*/

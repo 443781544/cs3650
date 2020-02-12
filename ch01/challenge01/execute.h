@@ -3,14 +3,14 @@
 
 #include "svec.h"
 
-void execute(svec* tokens);
-void executeSemicolon(svec* tokens, int index);
-void executePipe(svec* tokens);
-void executeBackground(svec* tokens);
-void executeAnd(svec* tokens, int index);
-void executeOr(svec* tokens, int index);
-void executeRedirectOut(svec* tokens);
-void executeRedirectIn(svec* tokens);
-void executecmd(svec* tokens);
+int execute(svec* tokens);
+int executeSemicolon(svec* tokens, int index);
+int executePipe(svec* tokens);
+int executeBackground(svec* tokens, int index);
+int executeAnd(svec* tokens, int index);
+int executeOr(svec* tokens, int index);
+int executeRedirectIn(svec* tokens, int index);
+int executeRedirectOut(svec* tokens);
+int executecmd(svec* tokens);
 
 #endif
