@@ -42,7 +42,7 @@ execute(svec* tokens)
     
     }
     else if(contains(tokens, ops[1])) {
-    	executePipe(tokens);
+    	executePipe(tokens, contains(tokens, ops[1]));
     }
     else if(contains(tokens, ops[2])) {
     	executeBackground(tokens, contains(tokens, ops[2]));
@@ -61,7 +61,7 @@ execute(svec* tokens)
     
     }
     else if(contains(tokens, ops[6])) {
-    	executeRedirectOut(tokens);
+    	executeRedirectOut(tokens, contains(tokens, ops[6]));
     
     }
     else {
@@ -112,7 +112,54 @@ executeSemicolon(svec* tokens, int index) {
 }
 
 int
-executePipe(svec* tokens) {
+executePipe(svec* tokens, int index) {
+
+
+	int rv, cpid1;
+
+	int pipe_fds[2];
+	rv = pipe(pipe_fds);
+	check_rv(rv);
+
+	int p_read = pipe_fds[0];
+	int p_write = pipe_fds[1];
+
+	int stdin_dup = dup(0);
+	int stdout_dup = dup(1);
+
+
+	if ((cpid1 = fork())) {
+		// parent
+		close(p_write);	
+		close(0);
+		dup(p_read);
+		int status;
+		waitpid(cpid1, &status, 0);
+		
+		svec* cmd = make_svec();
+		
+		for(int i = index + 1; i < tokens->size; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		dup2(stdout_dup, 1);
+		execute(cmd);
+		free_svec(cmd);
+		dup2(stdin_dup, 0);
+
+	}
+	else {
+		close(p_read);
+		close(1);
+		dup(p_write);
+		svec* cmd = make_svec();
+		
+		for(int i = 0; i < index; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		execute(cmd);
+		free_svec(cmd);
+		exit(0);
+	}
 	
 }
 
@@ -209,24 +256,29 @@ int executeRedirectIn(svec* tokens, int index){
 
 }
 
-int executeRedirectOut(svec* tokens){
-/*
+int executeRedirectOut(svec* tokens, int index){
  	int cpid;
 	if ((cpid = fork())) {
 		waitpid(cpid, 0, 0);
-		printf("%d: Child done.\n", getpid());
 	}
 	else {
-		int fd = open("foo.txt", O_CREAT | O_APPEND | O_WRONLY, 0644);
+		int stdoutCopy = dup(1);
+		svec* cmd = make_svec();
+	
+		for(int i = 0; i < index; ++i) {
+			svec_push_back(cmd, svec_get(tokens, i));
+		}
+		char* file = svec_get(tokens, index + 1);
+
 		close(1);
-		dup(fd);
-		close(fd);
+		open(file, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 
-		execlp("echo", "echo", "exec'd", "echo", NULL);
-
+		execute(cmd);
+		free_svec(cmd);
+		dup2(stdoutCopy, 1); 
 	}
 	return 0;
-*/
+
 }
 
 int
