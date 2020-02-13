@@ -85,9 +85,18 @@ svec_swap(svec* sv, int ii, int jj)
 void 
 print_svec(svec* xs)
 {
+
+/*
     for (int i = 0; i < xs->size; ++i) {
         printf("%s\n", xs->data[i]);
     }
+*/
+
+printf("---------------------The List---------------------\n");
+    for (int i = 0; i < xs->size; ++i) {
+        printf("%s, ", xs->data[i]);
+    }
+printf("\n");	
 
 
 }

@@ -20,50 +20,56 @@ check_rv(int rv)
 }
 
 
-//return the index of the string in the sv if sv contains the string, 0 otherwise.
+//return the index of the string in the sv if sv contains the string, -1 otherwise.
 int contains(svec* sv, const char* string) {
     for(int i = 0; i < sv->size; i++) {
 	if(strcmp(svec_get(sv, i), string) == 0) {
 	    return i;
 	}
     }
-    return 0;
+    return -1;
 
 }
 
 int
 execute(svec* tokens)
 {
-
-    const char* ops[] = {";", "|", "&", "||", "&&", "<", ">"};
+//print_svec(tokens);
+    const char* ops[] = {";", "|", "&", "||", "&&", "<", ">", "(", ")"};
     
-    if(contains(tokens, ops[0])) {
+    if(contains(tokens, ops[1]) != -1) {
+    	executePipe(tokens, contains(tokens, ops[1]));
+    }
+    else if(contains(tokens, ops[7]) != -1 && contains(tokens, ops[8]) != -1) {
+    	executePar(tokens, contains(tokens, ops[7]), contains(tokens, ops[8]));
+
+    }
+    else if(contains(tokens, ops[0]) != -1) {
     	executeSemicolon(tokens, contains(tokens, ops[0]));
     
     }
-    else if(contains(tokens, ops[1])) {
-    	executePipe(tokens, contains(tokens, ops[1]));
-    }
-    else if(contains(tokens, ops[2])) {
+
+    else if(contains(tokens, ops[2]) != -1) {
     	executeBackground(tokens, contains(tokens, ops[2]));
     
     }
-    else if(contains(tokens, ops[3])) {
+    else if(contains(tokens, ops[3]) != -1) {
     	executeOr(tokens, contains(tokens, ops[3]));
     
     }
-    else if(contains(tokens, ops[4])) {
+    else if(contains(tokens, ops[4]) != -1) {
     	executeAnd(tokens, contains(tokens, ops[4]));
     
     }
-    else if(contains(tokens, ops[5])) {
+    else if(contains(tokens, ops[5]) != -1) {
     	executeRedirectIn(tokens, contains(tokens, ops[5]));
     
     }
-    else if(contains(tokens, ops[6])) {
+    else if(contains(tokens, ops[6]) != -1) {
     	executeRedirectOut(tokens, contains(tokens, ops[6]));
     
     }
+
     else {
     	if(tokens->size == 0) {
        		return 0;
@@ -183,6 +189,7 @@ int executeBackground(svec* tokens, int index){
 		}
 		execute(cmd);
 		free_svec(cmd);
+		_exit(0);
 	}
 }
 
@@ -230,56 +237,62 @@ int executeAnd(svec* tokens, int index){
 }
 
 int executeRedirectIn(svec* tokens, int index){
+	int stdinCopy = dup(0);
+	svec* cmd = make_svec();
 
-	int cpid;
-	if ((cpid = fork())) {
-		waitpid(cpid, 0, 0);
+	for(int i = 0; i < index; ++i) {
+		svec_push_back(cmd, svec_get(tokens, i));
 	}
-	else {
-		int stdinCopy = dup(0);
-		svec* cmd = make_svec();
-	
-		for(int i = 0; i < index; ++i) {
-			svec_push_back(cmd, svec_get(tokens, i));
-		}
-		char* file = svec_get(tokens, index + 1);
+	char* file = svec_get(tokens, index + 1);
 
-		close(0);
-		open(file, O_RDONLY);
+	close(0);
+	open(file, O_RDONLY);
 
-		execute(cmd);
-		free_svec(cmd);
-		dup2(stdinCopy, 0); 
-
-	}
-
+	execute(cmd);
+	free_svec(cmd);
+	dup2(stdinCopy, 0); 
 
 }
 
 int executeRedirectOut(svec* tokens, int index){
- 	int cpid;
-	if ((cpid = fork())) {
-		waitpid(cpid, 0, 0);
-	}
-	else {
-		int stdoutCopy = dup(1);
-		svec* cmd = make_svec();
-	
-		for(int i = 0; i < index; ++i) {
-			svec_push_back(cmd, svec_get(tokens, i));
-		}
-		char* file = svec_get(tokens, index + 1);
 
-		close(1);
-		open(file, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+	int stdoutCopy = dup(1);
+	svec* cmd = make_svec();
 
-		execute(cmd);
-		free_svec(cmd);
-		dup2(stdoutCopy, 1); 
+	for(int i = 0; i < index; ++i) {
+		svec_push_back(cmd, svec_get(tokens, i));
 	}
-	return 0;
+	char* file = svec_get(tokens, index + 1);
+
+	close(1);
+	open(file, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+
+	execute(cmd);
+	free_svec(cmd);
+	dup2(stdoutCopy, 1); 
+
+
+
 
 }
+
+int executePar(svec* tokens, int index1, int index2){
+
+	svec* cmd = make_svec();
+
+	for(int i = 0; i < tokens->size; ++i) {
+		if( i == index1 || i == index2 ) {
+			continue;
+		}
+		svec_push_back(cmd, svec_get(tokens, i));
+	}
+
+	execute(cmd);
+	free_svec(cmd);
+
+}
+
+
 
 int
 executecmd(svec* tokens) 
@@ -302,3 +315,4 @@ executecmd(svec* tokens)
 	}
 
 }
+

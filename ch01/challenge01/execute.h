@@ -12,5 +12,6 @@ int executeOr(svec* tokens, int index);
 int executeRedirectIn(svec* tokens, int index);
 int executeRedirectOut(svec* tokens, int index);
 int executecmd(svec* tokens);
+int executePar(svec* tokens, int index1, int index2);
 
 #endif

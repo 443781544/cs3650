@@ -13,7 +13,7 @@ int
 isoperator(const char* text, int ii)
 {
 	char op = text[ii];
-	if(op == '<' || op == '>' || op == '|' || op == '&' || op == ';') {
+	if(op == '<' || op == '>' || op == '|' || op == '&' || op == ';' || op == '(' || op == ')') {
 		if(op == '&' && text[ii+1] == '&') {
 			return 2;
 		}	
@@ -40,7 +40,22 @@ read_string(const char* text, int ii)
 	return string;
 }
 
-	
+char*
+read_quote(const char* text, int ii)
+{
+	int nn = 0;
+	char curChar = text[nn + ii];
+	while(curChar != '\"') {
+		++nn;
+		curChar = text[nn + ii];
+	}
+
+	char* string = malloc(nn + 1);
+	memcpy(string, text + ii, nn);
+	string[nn] = 0;
+	return string;
+}
+
 	
 svec*
 tokenize(const char* text)
@@ -49,6 +64,16 @@ tokenize(const char* text)
 	int nn = strlen(text);
 	int ii = 0;
 	while(ii < nn) {
+		char curChar = text[ii];
+		if(curChar == '\"') {
+
+			char* string = read_quote(text, ii+1);
+			svec_push_back(xs, string);
+			ii += strlen(string) + 2;
+
+			continue;
+		}
+
 		if (isspace(text[ii])) {
 			++ii;
 			continue;

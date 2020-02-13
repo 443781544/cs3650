@@ -18,10 +18,11 @@ main(int argc, char* argv[])
 
     if (argc == 1) {
 	printf("nush$ ");
-        while(fgets(cmd, 256, stdin) != 0) {
+        while(fgets(cmd, 256, stdin) != NULL) {
 		fflush(stdout);
 
 		svec* tokens = tokenize(cmd);
+
     		execute(tokens);
     		free_svec(tokens);
 		printf("nush$ ");
@@ -32,11 +33,29 @@ main(int argc, char* argv[])
         FILE* pFile;
 	pFile = fopen(argv[1], "r");
 	if (pFile != NULL) {
-		while(fgets(cmd, 256, pFile) != 0) {
+		svec* tokens;
+		int append = 0;
+
+		while(fgets(cmd, 256, pFile) != NULL) {
+
 			fflush(stdout);
+
 			svec* tokens = tokenize(cmd);
+
+			while(strcmp(svec_get(tokens, tokens->size-1), "\\") == 0) {
+				tokens->size -= 1;
+				char tmp[256];
+				fgets(tmp, 256, pFile);
+				svec* nextLine = tokenize(tmp);
+				for(int i = 0; i < nextLine->size; ++i) {
+					svec_push_back(tokens, svec_get(nextLine, i));
+				}
+
+				free_svec(nextLine);
+			}			
 			execute(tokens);
 			free_svec(tokens);
+		
 		}
 	}
 	fclose(pFile);
@@ -45,4 +64,9 @@ main(int argc, char* argv[])
 
     return 0;
 }
+
+
+/*
+
+*/
 
